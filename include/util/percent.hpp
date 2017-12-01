@@ -41,7 +41,7 @@ class Percent
             m_next_threshold += m_percent_interval;
             PrintPercent(current_value / static_cast<double>(m_max_value) * 100.);
         }
-        if (current_value + 1 == m_max_value)
+        if (current_value + 1 == m_max_value || current_value == m_max_value)
             log << " 100%";
     }
 
