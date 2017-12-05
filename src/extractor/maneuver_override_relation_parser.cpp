@@ -52,10 +52,11 @@ ManeuverOverrideRelationParser::TryParse(const osmium::Relation &relation) const
     // we can trim away the vector after parsing
     InputManeuverOverride maneuver_override;
 
-    maneuver_override.maneuver = relation.tags().get_value_by_key("maneuver","");
-    maneuver_override.direction = relation.tags().get_value_by_key("direction","");
+    maneuver_override.maneuver = relation.tags().get_value_by_key("maneuver", "");
+    maneuver_override.direction = relation.tags().get_value_by_key("direction", "");
 
     boost::optional<std::uint64_t> from = boost::none, via = boost::none, to = boost::none;
+    std::vector<std::uint64_t> via_ways;
 
     for (const auto &member : relation.members())
     {
@@ -81,7 +82,8 @@ ManeuverOverrideRelationParser::TryParse(const osmium::Relation &relation) const
             break;
         }
         case osmium::item_type::way:
-            BOOST_ASSERT(0 == strcmp("from", role) || 0 == strcmp("to", role));
+            BOOST_ASSERT(0 == strcmp("from", role) || 0 == strcmp("to", role) ||
+                         0 == strcmp("via", role));
             if (0 == strcmp("from", role))
             {
                 from = static_cast<std::uint64_t>(member.ref());
@@ -89,6 +91,10 @@ ManeuverOverrideRelationParser::TryParse(const osmium::Relation &relation) const
             else if (0 == strcmp("to", role))
             {
                 to = static_cast<std::uint64_t>(member.ref());
+            }
+            else if (0 == strcmp("via", role))
+            {
+                via_ways.push_back(static_cast<std::uint64_t>(member.ref()));
             }
             break;
         case osmium::item_type::relation:
@@ -100,11 +106,19 @@ ManeuverOverrideRelationParser::TryParse(const osmium::Relation &relation) const
         }
     }
 
-    if (from && via && to)
+    if (from && (via || via_ways.size() > 0) && to)
     {
-        maneuver_override.to = {*to};
-        maneuver_override.from = {*from};
-        maneuver_override.via = {*via};
+        via_ways.insert(via_ways.begin(), *from);
+        via_ways.push_back(*to);
+        if (via)
+        {
+            maneuver_override.via_node = {*via};
+        }
+        for (const auto &n : via_ways)
+        {
+            std::cout << "Adding via way: " << n << std::endl;
+            maneuver_override.via_ways.push_back(OSMWayID{n});
+        }
     }
     else
     {

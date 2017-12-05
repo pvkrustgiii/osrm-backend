@@ -4,41 +4,106 @@
 #include "guidance/turn_instruction.hpp"
 #include "util/typedefs.hpp"
 
+#include "storage/shared_memory_ownership.hpp"
+#include "util/vector_view.hpp"
+#include <algorithm>
+#include <boost/functional/hash.hpp>
+
 namespace osrm
 {
 namespace extractor
 {
 
+// Data that is loaded from the OSM datafile directly
 struct InputManeuverOverride
 {
-    OSMWayID from;
-    OSMWayID to;
-    OSMNodeID via;
+    std::vector<OSMWayID> via_ways;
+    OSMNodeID via_node;
     std::string maneuver;
     std::string direction;
 };
 
+// Object returned by the datafacade
 struct ManeuverOverride
 {
-    NodeID from_node; // initially the internal OSM ID of the node before the turn, then later, the
-                      // edge_based_node_id of the turn
-    NodeID via_node_id; // node-based node ID
-    NodeID to_node; // initially the internal OSM ID of the node before the turn, then later, the
-                    // edge_based_node_id of the turn
+    std::vector<NodeID> node_sequence; // initially the internal node-based-node ID of the node
+    // before the turn, then later, the edge_based_node_id of the turn
+    NodeID instruction_node; // node-based node ID
     guidance::TurnType::Enum override_type;
     guidance::DirectionModifier::Enum direction;
 
     // check if all parts of the restriction reference an actual node
     bool Valid() const
     {
-        return from_node != SPECIAL_NODEID && to_node != SPECIAL_NODEID &&
-               via_node_id != SPECIAL_NODEID &&
-               (direction != guidance::DirectionModifier::MaxDirectionModifier ||
-               override_type != guidance::TurnType::Invalid);
+        return node_sequence.size() >= 2 ||
+               std::none_of(node_sequence.begin(),
+                            node_sequence.end(),
+                            [](const auto &n) { return n == SPECIAL_NODEID; }) ||
+               direction != guidance::DirectionModifier::MaxDirectionModifier ||
+               override_type != guidance::TurnType::Invalid;
     };
+};
+
+struct NodeBasedTurn
+{
+    NodeID from;
+    NodeID via;
+    NodeID to;
+
+    bool operator==(const NodeBasedTurn &other) const
+    {
+        return other.from == from && other.via == via && other.to == to;
+    }
+};
+
+struct UnresolvedManeuverOverride
+{
+
+    std::vector<NodeBasedTurn>
+        turn_sequence; // initially the internal node-based-node ID of the node
+    // before the turn, then later, the edge_based_node_id of the turn
+    NodeID instruction_node; // node-based node ID
+    guidance::TurnType::Enum override_type;
+    guidance::DirectionModifier::Enum direction;
+
+    // check if all parts of the restriction reference an actual node
+    bool Valid() const
+    {
+        return turn_sequence.size() >= 2 || std::none_of(turn_sequence.begin(),
+                                                         turn_sequence.end(),
+                                                         [](const auto &n) {
+                                                             return n.from == SPECIAL_NODEID ||
+                                                                    n.via == SPECIAL_NODEID ||
+                                                                    n.to == SPECIAL_NODEID;
+                                                         }) ||
+               direction != guidance::DirectionModifier::MaxDirectionModifier ||
+               override_type != guidance::TurnType::Invalid;
+    }
 };
 }
 }
+
+// custom specialization of std::hash can be injected in namespace std
+namespace std
+{
+template <> struct hash<osrm::extractor::NodeBasedTurn>
+
+{
+    typedef osrm::extractor::NodeBasedTurn argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const &s) const noexcept
+    {
+
+        std::size_t seed = 0;
+        boost::hash_combine(seed, s.from);
+        boost::hash_combine(seed, s.via);
+        boost::hash_combine(seed, s.to);
+
+        return seed;
+    }
+};
+}
+
 #endif
 /*
 from=1

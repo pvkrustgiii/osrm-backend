@@ -13,7 +13,7 @@ namespace extractor
 RestrictionCompressor::RestrictionCompressor(
     std::vector<TurnRestriction> &restrictions,
     std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
-    std::vector<ManeuverOverride> &maneuver_overrides)
+    std::vector<UnresolvedManeuverOverride> &maneuver_overrides)
 {
     // add a node restriction ptr to the starts/ends maps, needs to be a reference!
     auto index = [&](auto &element) {
@@ -43,8 +43,11 @@ RestrictionCompressor::RestrictionCompressor(
                   index_starts_and_ends);
 
     auto index_maneuver = [&](auto &maneuver) {
-        maneuver_starts.insert(std::make_pair(maneuver.from_node, &maneuver));
-        maneuver_ends.insert(std::make_pair(maneuver.to_node, &maneuver));
+        for (auto &turn : maneuver.turn_sequence)
+        {
+            maneuver_starts.insert(std::make_pair(turn.from, &turn));
+            maneuver_ends.insert(std::make_pair(turn.to, &turn));
+        }
     };
     // !needs to be reference, so we can get the correct address
     std::for_each(maneuver_overrides.begin(), maneuver_overrides.end(), [&](auto &maneuver) {
@@ -116,10 +119,12 @@ void RestrictionCompressor::Compress(const NodeID from, const NodeID via, const 
     const auto reinsert_end = [&](auto ptr) { ends.insert(std::make_pair(ptr->to, ptr)); };
     std::for_each(end_ptrs.begin(), end_ptrs.end(), reinsert_end);
 
+    /**********************************************************************************************/
+
     // handle maneuver overrides from nodes
     // extract all startptrs
     auto maneuver_starts_range = maneuver_starts.equal_range(via);
-    std::vector<ManeuverOverride *> mnv_start_ptrs;
+    std::vector<NodeBasedTurn *> mnv_start_ptrs;
     std::transform(maneuver_starts_range.first,
                    maneuver_starts_range.second,
                    std::back_inserter(mnv_start_ptrs),
@@ -128,16 +133,16 @@ void RestrictionCompressor::Compress(const NodeID from, const NodeID via, const 
     // update from nodes of maneuver overrides
     const auto update_start_mnv = [&](auto ptr) {
         // ____ | from - p.from | via - p.via | to - p.to | ____
-        BOOST_ASSERT(ptr->from_node == via);
-        if (ptr->via_node_id == to)
+        BOOST_ASSERT(ptr->from == via);
+        if (ptr->via == to)
         {
-            ptr->from_node = from;
+            ptr->from = from;
         }
         // ____ | to - p.from | via - p.via | from - p.to | ____
         else
         {
-            BOOST_ASSERT(ptr->via_node_id == from);
-            ptr->from_node = to;
+            BOOST_ASSERT(ptr->via == from);
+            ptr->from = to;
         }
     };
     std::for_each(mnv_start_ptrs.begin(), mnv_start_ptrs.end(), update_start_mnv);
@@ -145,31 +150,32 @@ void RestrictionCompressor::Compress(const NodeID from, const NodeID via, const 
     // update the ptrs in our mapping
     maneuver_starts.erase(via);
     const auto reinsert_start_mnv = [&](auto ptr) {
-        maneuver_starts.insert(std::make_pair(ptr->from_node, ptr));
+        maneuver_starts.insert(std::make_pair(ptr->from, ptr));
     };
     std::for_each(mnv_start_ptrs.begin(), mnv_start_ptrs.end(), reinsert_start_mnv);
 
+    /**********************************************************************************************/
     // handle maneuver override to nodes
     // extract all end ptrs and move them from via to to
     auto maneuver_ends_range = maneuver_ends.equal_range(via);
-    std::vector<ManeuverOverride *> mnv_end_ptrs;
+    std::vector<NodeBasedTurn *> mnv_end_ptrs;
     std::transform(maneuver_ends_range.first,
                    maneuver_ends_range.second,
                    std::back_inserter(mnv_end_ptrs),
                    [](const auto pair) { return pair.second; });
 
     const auto update_end_mnv = [&](auto ptr) {
-        BOOST_ASSERT(ptr->to_node == via);
+        BOOST_ASSERT(ptr->to == via);
         // p.from | ____ - p.via | from - p.to | via - ____ | to
-        if (ptr->via_node_id == from)
+        if (ptr->via == from)
         {
-            ptr->to_node = to;
+            ptr->to = to;
         }
         // p.from | ____ - p.via | to - p.to | via - ____ | from
         else
         {
-            BOOST_ASSERT(ptr->via_node_id == to);
-            ptr->to_node = from;
+            BOOST_ASSERT(ptr->via == to);
+            ptr->to = from;
         }
     };
     std::for_each(mnv_end_ptrs.begin(), mnv_end_ptrs.end(), update_end_mnv);
@@ -178,7 +184,7 @@ void RestrictionCompressor::Compress(const NodeID from, const NodeID via, const 
     maneuver_ends.erase(via);
 
     const auto reinsert_end_mnvs = [&](auto ptr) {
-        maneuver_ends.insert(std::make_pair(ptr->to_node, ptr));
+        maneuver_ends.insert(std::make_pair(ptr->to, ptr));
     };
     std::for_each(mnv_end_ptrs.begin(), mnv_end_ptrs.end(), reinsert_end_mnvs);
 }

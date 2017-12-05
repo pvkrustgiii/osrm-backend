@@ -29,7 +29,7 @@ class GraphCompressor
                   ScriptingEnvironment &scripting_environment,
                   std::vector<TurnRestriction> &turn_restrictions,
                   std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
-                  std::vector<ManeuverOverride> &maneuver_overrides,
+                  std::vector<UnresolvedManeuverOverride> &maneuver_overrides,
                   util::NodeBasedDynamicGraph &graph,
                   const std::vector<NodeBasedEdgeAnnotation> &node_data_container,
                   CompressedEdgeContainer &geometry_compressor);

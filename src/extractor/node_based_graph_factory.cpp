@@ -20,7 +20,7 @@ NodeBasedGraphFactory::NodeBasedGraphFactory(
     ScriptingEnvironment &scripting_environment,
     std::vector<TurnRestriction> &turn_restrictions,
     std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
-    std::vector<ManeuverOverride> &maneuver_overrides)
+    std::vector<UnresolvedManeuverOverride> &maneuver_overrides)
 {
     LoadDataFromFile(input_file);
     Compress(scripting_environment,
@@ -89,7 +89,7 @@ void NodeBasedGraphFactory::Compress(
     ScriptingEnvironment &scripting_environment,
     std::vector<TurnRestriction> &turn_restrictions,
     std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
-    std::vector<ManeuverOverride> &maneuver_overrides)
+    std::vector<UnresolvedManeuverOverride> &maneuver_overrides)
 {
     GraphCompressor graph_compressor;
     graph_compressor.Compress(barriers,

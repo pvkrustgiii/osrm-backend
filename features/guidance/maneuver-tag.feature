@@ -40,6 +40,61 @@ Feature: Maneuver tag support
         # Testing re-awakening suppressed turns
             | a,e       | A Street,B Street,B Street          | depart,turn slight_left,arrive           |
 
+    Scenario: single via-way
+      Given the node map
+          """"
+            a--b---c----d---e
+                   |
+                   g
+                   |
+            h------i--------j
+          """
+
+        And the ways
+            | nodes | name     | oneway |
+            | abc   | A Street | no     |
+            | cde   | B Street | no     |
+            | cgi   | C Street | no     |
+            | hi    | J Street | no     |
+            | ij    | J Street | no     |
+
+        And the relations
+            | type     | way:from | way:via | way:to | maneuver | direction   |
+            | maneuver | abc      | cgi     | ij     | turn     | sharp_right |
+
+        When I route I should get
+            | waypoints | route                               | turns                                    |
+            | a,j       | A Street,C Street,J Street,J Street | depart,turn sharp right,turn left,arrive |
+
+
+    Scenario: multiple via-way
+      Given the node map
+          """"
+            a--b---c----d---e
+                   |
+                   g-----k
+                   |
+            h------i--------j
+          """
+
+        And the ways
+            | nodes | name     | oneway |
+            | abc   | A Street | no     |
+            | cde   | B Street | no     |
+            | cg    | C Street | no     |
+            | gi    | C Street | no     |
+            | hi    | J Street | no     |
+            | ij    | J Street | no     |
+            | gk    | G Street | no     |
+
+        And the relations
+            | type     | way:from | way:via | way:via | way:to | maneuver | direction   |
+            | maneuver | abc      | cg      | gi      | ij     | turn     | sharp_right |
+
+        When I route I should get
+            | waypoints | route                               | turns                                    |
+            | a,j       | A Street,C Street,J Street,J Street | depart,turn sharp right,turn left,arrive |
+
 
     Scenario: Use maneuver tag to announce a particular turn type
         Given the node map

@@ -196,8 +196,11 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
     guidance::LaneDescriptionMap turn_lane_map;
     std::vector<TurnRestriction> turn_restrictions;
     std::vector<ConditionalTurnRestriction> conditional_turn_restrictions;
-    std::vector<ManeuverOverride> maneuver_overrides;
-    std::tie(turn_lane_map, turn_restrictions, conditional_turn_restrictions, maneuver_overrides) =
+    std::vector<UnresolvedManeuverOverride> unresolved_maneuver_overrides;
+    std::tie(turn_lane_map,
+             turn_restrictions,
+             conditional_turn_restrictions,
+             unresolved_maneuver_overrides) =
         ParseOSMData(scripting_environment, number_of_threads);
 
     // Transform the node-based graph that OSM is based on into an edge-based graph
@@ -218,7 +221,7 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
                                                    scripting_environment,
                                                    turn_restrictions,
                                                    conditional_turn_restrictions,
-                                                   maneuver_overrides);
+                                                   unresolved_maneuver_overrides);
 
     util::Log() << "Find segregated edges in node-based graph ..." << std::flush;
     TIMER_START(segregated);
@@ -281,7 +284,7 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
                                turn_restrictions,
                                conditional_turn_restrictions,
                                segregated_edges,
-                               maneuver_overrides,
+                               unresolved_maneuver_overrides,
                                turn_lane_map,
                                scripting_environment,
                                edge_based_nodes_container,
@@ -347,7 +350,7 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
 std::tuple<guidance::LaneDescriptionMap,
            std::vector<TurnRestriction>,
            std::vector<ConditionalTurnRestriction>,
-           std::vector<ManeuverOverride>>
+           std::vector<UnresolvedManeuverOverride>>
 Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
                         const unsigned number_of_threads)
 {
@@ -685,7 +688,7 @@ EdgeID Extractor::BuildEdgeExpandedGraph(
     const std::vector<TurnRestriction> &turn_restrictions,
     const std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
     const std::unordered_set<EdgeID> &segregated_edges,
-    const std::vector<ManeuverOverride> &maneuver_overrides,
+    const std::vector<UnresolvedManeuverOverride> &maneuver_overrides,
     // might have to be updated to add new lane combinations
     guidance::LaneDescriptionMap &turn_lane_map,
     // for calculating turn penalties

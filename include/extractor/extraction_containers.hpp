@@ -65,7 +65,7 @@ class ExtractionContainers
     std::vector<TurnRestriction> unconditional_turn_restrictions;
 
     std::vector<InputManeuverOverride> external_maneuver_overrides_list;
-    std::vector<ManeuverOverride> internal_maneuver_overrides;
+    std::vector<UnresolvedManeuverOverride> internal_maneuver_overrides;
 
     ExtractionContainers();
 

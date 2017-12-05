@@ -79,6 +79,7 @@ struct RouteStep
     std::size_t geometry_end;
     std::vector<IntermediateIntersection> intersections;
     bool is_left_hand_driving;
+    bool is_overridden;
 
     // remove all information from the route step, marking it as invalid (used to indicate empty
     // steps to be removed).

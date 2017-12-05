@@ -32,6 +32,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 #include <tbb/blocked_range.h>
@@ -211,19 +212,20 @@ NBGToEBG EdgeBasedGraphFactory::InsertEdgeBasedNode(const NodeID node_u, const N
     return NBGToEBG{node_u, node_v, nbe_to_ebn_mapping[edge_id_1], nbe_to_ebn_mapping[edge_id_2]};
 }
 
-void EdgeBasedGraphFactory::Run(ScriptingEnvironment &scripting_environment,
-                                const std::string &turn_data_filename,
-                                const std::string &turn_lane_data_filename,
-                                const std::string &turn_weight_penalties_filename,
-                                const std::string &turn_duration_penalties_filename,
-                                const std::string &turn_penalties_index_filename,
-                                const std::string &cnbg_ebg_mapping_path,
-                                const std::string &conditional_penalties_filename,
-                                const std::string &maneuver_overrides_filename,
-                                const RestrictionMap &node_restriction_map,
-                                const ConditionalRestrictionMap &conditional_node_restriction_map,
-                                const WayRestrictionMap &way_restriction_map,
-                                const std::vector<ManeuverOverride> &maneuver_overrides)
+void EdgeBasedGraphFactory::Run(
+    ScriptingEnvironment &scripting_environment,
+    const std::string &turn_data_filename,
+    const std::string &turn_lane_data_filename,
+    const std::string &turn_weight_penalties_filename,
+    const std::string &turn_duration_penalties_filename,
+    const std::string &turn_penalties_index_filename,
+    const std::string &cnbg_ebg_mapping_path,
+    const std::string &conditional_penalties_filename,
+    const std::string &maneuver_overrides_filename,
+    const RestrictionMap &node_restriction_map,
+    const ConditionalRestrictionMap &conditional_node_restriction_map,
+    const WayRestrictionMap &way_restriction_map,
+    const std::vector<UnresolvedManeuverOverride> &unresolved_maneuver_overrides)
 {
     TIMER_START(renumber);
     m_number_of_edge_based_nodes =
@@ -254,7 +256,7 @@ void EdgeBasedGraphFactory::Run(ScriptingEnvironment &scripting_environment,
                               node_restriction_map,
                               conditional_node_restriction_map,
                               way_restriction_map,
-                              maneuver_overrides);
+                              unresolved_maneuver_overrides);
 
     TIMER_STOP(generate_edges);
 
@@ -410,7 +412,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
     const RestrictionMap &node_restriction_map,
     const ConditionalRestrictionMap &conditional_restriction_map,
     const WayRestrictionMap &way_restriction_map,
-    const std::vector<ManeuverOverride> &maneuver_overrides)
+    const std::vector<UnresolvedManeuverOverride> &unresolved_maneuver_overrides)
 {
 
     // Here's where we store the modified maneuver overrides
@@ -531,8 +533,10 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
             IntersectionData continuous_data;
             std::vector<EdgeWithData> delayed_data;
             std::vector<Conditional> conditionals;
-            std::vector<ManeuverOverride> maneuver_overrides;
+            std::unordered_map<NodeBasedTurn, std::pair<NodeID, NodeID>> turn_to_ebn_map;
         };
+
+        std::unordered_map<NodeBasedTurn, std::pair<NodeID, NodeID>> turn_to_ebn_map;
 
         // Generate edges for either artificial nodes or the main graph
         const auto generate_edge = [this,
@@ -786,26 +790,23 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
 
                             const auto edgetarget = m_node_based_graph.GetTarget(turn.eid);
 
-                            // TODO: sort the list and do binary search/fast fail
-                            const auto maneuver_override = std::find_if(
-                                maneuver_overrides.begin(),
-                                maneuver_overrides.end(),
-                                [&](const ManeuverOverride & override) {
-                                    return override.from_node ==
-                                           node_along_road_entering && override.via_node_id ==
-                                           node_at_center_of_intersection && override.to_node ==
-                                           edgetarget;
-
-                                });
-
-                            if (maneuver_override != maneuver_overrides.end())
+                            // TODO: this loop is not optimized - once we have a few
+                            //       overrides available, we should index this for faster
+                            //       lookups
+                            for (auto & override : unresolved_maneuver_overrides)
                             {
-                                buffer->maneuver_overrides.push_back(
-                                    ManeuverOverride{nbe_to_ebn_mapping[incoming_edge],
-                                                     maneuver_override->via_node_id,
-                                                     target_id,
-                                                     maneuver_override->override_type,
-                                                     maneuver_override->direction});
+                                for (auto &turn : override.turn_sequence)
+                                {
+                                    if (turn.from == node_along_road_entering &&
+                                        turn.via == node_at_center_of_intersection &&
+                                        turn.to == edgetarget)
+                                    {
+                                        const auto &ebn_from = nbe_to_ebn_mapping[incoming_edge];
+                                        const auto &ebn_to = target_id;
+                                        buffer->turn_to_ebn_map[turn] =
+                                            std::make_pair(ebn_from, ebn_to);
+                                    }
+                                }
                             }
 
                             { // scope to forget edge_with_data after
@@ -985,11 +986,40 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                 delayed_data.insert(
                     delayed_data.end(), buffer->delayed_data.begin(), buffer->delayed_data.end());
 
-                renumbered_maneuver_overrides.insert(renumbered_maneuver_overrides.end(),
-                                                     buffer->maneuver_overrides.begin(),
-                                                     buffer->maneuver_overrides.end());
-
+                std::for_each(buffer->turn_to_ebn_map.begin(),
+                              buffer->turn_to_ebn_map.end(),
+                              [&turn_to_ebn_map](const auto &p) {
+                                  // TODO: log conflicts here
+                                  turn_to_ebn_map.insert(p);
+                              });
             });
+
+        // Now, renumber all our maneuver overrides to use edge-based-nodes
+        std::vector<ManeuverOverride> renumbered_maneuver_overrides;
+
+        // Now, replace node-based-node ID values in the `node_sequence` with
+        // the edge-based-node values we found and stored in the `turn_to_ebn_map`
+        for (auto &unresolved_override : unresolved_maneuver_overrides)
+        {
+            ManeuverOverride resolved_override;
+            resolved_override.instruction_node = unresolved_override.instruction_node;
+            resolved_override.override_type = unresolved_override.override_type;
+            resolved_override.direction = unresolved_override.direction;
+
+            resolved_override.node_sequence.resize(unresolved_override.turn_sequence.size() + 1);
+
+            for (auto i = unresolved_override.turn_sequence.size() - 1; i > 0; --i)
+            {
+                const auto v = turn_to_ebn_map.find(unresolved_override.turn_sequence[i]);
+                if (v != turn_to_ebn_map.end())
+                {
+                    resolved_override.node_sequence[i - 1] = v->second.first;
+                    resolved_override.node_sequence[i] = v->second.second;
+                }
+            }
+
+            renumbered_maneuver_overrides.push_back(resolved_override);
+        }
 
         // Now, execute the pipeline.  The value of "5" here was chosen by experimentation
         // on a 16-CPU machine and seemed to give the best performance.  This value needs
@@ -1026,7 +1056,9 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         // Sort by `from_node`, so that later lookups can be done with a binary search.
         std::sort(renumbered_maneuver_overrides.begin(),
                   renumbered_maneuver_overrides.end(),
-                  [](const auto &a, const auto &b) { return a.from_node < b.from_node; });
+                  [](const auto &a, const auto &b) {
+                      return a.node_sequence.front() < b.node_sequence.front();
+                  });
         // write conditional turn penalties into the restrictions file
         storage::io::FileWriter writer(maneuver_overrides_filename,
                                        storage::io::FileWriter::GenerateFingerprint);

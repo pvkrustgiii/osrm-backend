@@ -30,7 +30,7 @@ class RestrictionCompressor
   public:
     RestrictionCompressor(std::vector<TurnRestriction> &restrictions,
                           std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
-                          std::vector<ManeuverOverride> &maneuver_overrides);
+                          std::vector<UnresolvedManeuverOverride> &maneuver_overrides);
 
     // account for the compression of `from-via-to` into `from-to`
     void Compress(const NodeID from, const NodeID via, const NodeID to);
@@ -43,8 +43,8 @@ class RestrictionCompressor
     boost::unordered_multimap<NodeID, NodeRestriction *> starts;
     boost::unordered_multimap<NodeID, NodeRestriction *> ends;
 
-    boost::unordered_multimap<NodeID, ManeuverOverride *> maneuver_starts;
-    boost::unordered_multimap<NodeID, ManeuverOverride *> maneuver_ends;
+    boost::unordered_multimap<NodeID, NodeBasedTurn *> maneuver_starts;
+    boost::unordered_multimap<NodeID, NodeBasedTurn *> maneuver_ends;
 };
 
 } // namespace extractor

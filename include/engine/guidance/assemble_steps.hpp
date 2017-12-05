@@ -145,7 +145,8 @@ inline std::vector<RouteStep> assembleSteps(const datafacade::BaseDataFacade &fa
                                           leg_geometry.FrontIndex(segment_index),
                                           leg_geometry.BackIndex(segment_index) + 1,
                                           {intersection},
-                                          path_point.is_left_hand_driving});
+                                          path_point.is_left_hand_driving,
+                                          false});
 
                 if (leg_data_index + 1 < leg_data.size())
                 {
@@ -228,7 +229,8 @@ inline std::vector<RouteStep> assembleSteps(const datafacade::BaseDataFacade &fa
                                   leg_geometry.FrontIndex(segment_index),
                                   leg_geometry.BackIndex(segment_index) + 1,
                                   {intersection},
-                                  facade.IsLeftHandDriving(target_node_id)});
+                                  facade.IsLeftHandDriving(target_node_id),
+                                  false});
     }
     // In this case the source + target are on the same edge segment
     else
@@ -273,7 +275,8 @@ inline std::vector<RouteStep> assembleSteps(const datafacade::BaseDataFacade &fa
                                   leg_geometry.FrontIndex(segment_index),
                                   leg_geometry.BackIndex(segment_index) + 1,
                                   {intersection},
-                                  facade.IsLeftHandDriving(source_node_id)});
+                                  facade.IsLeftHandDriving(source_node_id),
+                                  false});
     }
 
     BOOST_ASSERT(segment_index == number_of_segments - 1);
@@ -316,7 +319,8 @@ inline std::vector<RouteStep> assembleSteps(const datafacade::BaseDataFacade &fa
                               leg_geometry.locations.size() - 1,
                               leg_geometry.locations.size(),
                               {intersection},
-                              facade.IsLeftHandDriving(target_node_id)});
+                              facade.IsLeftHandDriving(target_node_id),
+                              false});
 
     BOOST_ASSERT(steps.front().intersections.size() == 1);
     BOOST_ASSERT(steps.front().intersections.front().bearings.size() == 1);

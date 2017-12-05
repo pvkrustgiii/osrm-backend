@@ -161,6 +161,68 @@ class RouteAPI : public BaseAPI
                                                      reversed_source,
                                                      reversed_target);
 
+                // Find overrides that match, and apply them
+                for (auto current_step_it = leg.steps.begin(); current_step_it != leg.steps.end();
+                     ++current_step_it)
+                {
+                    const auto overrides =
+                        BaseAPI::facade.GetOverridesThatStartAt(current_step_it->from_id);
+                    if (overrides.empty())
+                        continue;
+                    for (const extractor::ManeuverOverride &maneuver_relation : overrides)
+                    {
+                        std::size_t MAX_MANEUVER_DISTANCE =
+                            std::min(maneuver_relation.node_sequence.size(),
+                                     static_cast<decltype(maneuver_relation.node_sequence.size())>(
+                                         std::distance(current_step_it, leg.steps.end())));
+
+                        const auto step_search_start = current_step_it;
+                        const auto step_search_end = current_step_it + MAX_MANEUVER_DISTANCE;
+                        auto search_result = std::search(
+                            step_search_start,
+                            step_search_end,
+                            maneuver_relation.node_sequence.begin(),
+                            maneuver_relation.node_sequence.end(),
+                            [](const auto &a, const auto &b) { return a.from_id == b; });
+
+                        // We got a match, update using the instruction_node
+                        if (search_result == step_search_start)
+                        {
+                            const auto via_node_coords = BaseAPI::facade.GetCoordinateOfNode(
+                                maneuver_relation.instruction_node);
+                            // Find the step that has the instruction_node at the intersection point
+                            auto step_to_update = std::find_if(
+                                step_search_start,
+                                step_search_end,
+                                [&leg_geometry, &via_node_coords](const auto &step) {
+                                    // iterators over geometry of current step
+                                    auto begin =
+                                        leg_geometry.locations.begin() + step.geometry_begin;
+                                    auto end = leg_geometry.locations.begin() + step.geometry_end;
+                                    auto via_match =
+                                        std::find_if(begin, end, [&](const auto &location) {
+                                            return location == via_node_coords;
+                                        });
+                                    return via_match != end;
+                                });
+                            // We found a step that had the intersection_node coordinate
+                            // in its geometry
+                            if (step_to_update != step_search_end)
+                            {
+                                step_to_update->maneuver.instruction.type =
+                                    maneuver_relation.override_type;
+                                if (maneuver_relation.direction !=
+                                    extractor::guidance::DirectionModifier::MaxDirectionModifier)
+                                {
+                                    step_to_update->maneuver.instruction.direction_modifier =
+                                        maneuver_relation.direction;
+                                }
+                                step_to_update->is_overridden = true;
+                            }
+                        }
+                    }
+                }
+
                 /* Perform step-based post-processing.
                  *
                  * Using post-processing on basis of route-steps for a single leg at a time
@@ -204,95 +266,6 @@ class RouteAPI : public BaseAPI
                                                               phantoms.source_phantom,
                                                               phantoms.target_phantom);
                 leg_geometry = guidance::resyncGeometry(std::move(leg_geometry), leg.steps);
-
-                // apply manual override relations
-                bool done = false;
-                for (auto current_step_it = leg.steps.begin(); current_step_it != leg.steps.end();
-                     ++current_step_it)
-                {
-                    // TODO: figure out a way to check the
-                    // `phantoms.source_phantom.forward/reverse_segment_id.id`
-                    // before starting looking at the leg.steps entries.
-                    //    first edge_based_node =
-                    //      reversed_source ? phantoms.source_phantom.reverse_segment_id.id
-                    //                      : phantoms.source_phantom.forward_segment_id.id);
-                    const auto overrides =
-                        BaseAPI::facade.GetOverridesThatStartAt(current_step_it->from_id);
-                    if (overrides.empty())
-                        continue;
-                    for (const extractor::ManeuverOverride &maneuver_relation : overrides)
-                    {
-                        // check if the to member of the override relation is in the route
-                        // Look ahead up to 5 steps
-                        std::size_t MAX_MANEUVER_DISTANCE =
-                            std::min(5l, std::distance(current_step_it, leg.steps.end()));
-                        auto max_steps_fwd = current_step_it + MAX_MANEUVER_DISTANCE;
-                        auto to_match = std::find_if(
-                            current_step_it, max_steps_fwd, [&maneuver_relation](const auto &step) {
-                                return step.from_id == maneuver_relation.to_node;
-                            });
-                        if (to_match == max_steps_fwd)
-                        {
-                            // If we didn't match one of the steps, also check if we're near the end
-                            // of the route - if so, check the phantom node ID, it's the last
-                            // edge-based-node in the route sequence
-                            if (MAX_MANEUVER_DISTANCE >= 5 ||
-                                (reversed_target ? phantoms.target_phantom.reverse_segment_id.id
-                                                 : phantoms.target_phantom.forward_segment_id.id) !=
-                                    maneuver_relation.to_node)
-                            {
-                                continue;
-                            }
-                        }
-
-                        const auto via_node_coords =
-                            BaseAPI::facade.GetCoordinateOfNode(maneuver_relation.via_node_id);
-
-                        // search for corresponding via_node in the subsequent geometries
-                        auto current_step_copy = current_step_it;
-                        for (; current_step_copy != max_steps_fwd; ++current_step_copy)
-                        {
-                            // iterators over geometry of current step
-                            auto begin =
-                                leg_geometry.locations.begin() + current_step_copy->geometry_begin;
-                            auto end =
-                                leg_geometry.locations.begin() + current_step_copy->geometry_end;
-                            auto via_match = std::find_if(begin, end, [&](const auto &location) {
-                                return location == via_node_coords;
-                            });
-                            if (via_match == end)
-                                continue;
-                            // found a match; this route makes the turn that the maneuver relation
-                            // wants to modify
-                            done = true;
-                            BOOST_ASSERT(maneuver_relation.override_type !=
-                                         extractor::guidance::TurnType::Invalid);
-
-                            // Now, if we matched the `via` on this geometry, it's the *next*
-                            // step that needs to be updated - geometry of the current step goes
-                            // away from the current turn location, and the last node in the
-                            // geometry is the location of the next step.
-                            ++current_step_copy;
-                            // Make sure we don't go past the end of the list
-                            if (current_step_copy < leg.steps.end())
-                            {
-                                current_step_copy->maneuver.instruction.type =
-                                    maneuver_relation.override_type;
-                                if (maneuver_relation.direction !=
-                                    extractor::guidance::DirectionModifier::MaxDirectionModifier)
-                                {
-                                    current_step_copy->maneuver.instruction.direction_modifier =
-                                        maneuver_relation.direction;
-                                }
-                            }
-                            break;
-                        }
-                        if (done)
-                            break;
-                    }
-                    if (done)
-                        break;
-                }
             }
 
             leg_geometries.push_back(std::move(leg_geometry));
