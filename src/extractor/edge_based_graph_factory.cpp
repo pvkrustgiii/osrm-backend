@@ -457,6 +457,10 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
     std::vector<TurnPenalty> turn_weight_penalties;
     std::vector<TurnPenalty> turn_duration_penalties;
 
+    // Now, renumber all our maneuver overrides to use edge-based-nodes
+    std::vector<StorageManeuverOverride> storage_maneuver_overrides;
+    std::vector<NodeID> maneuver_override_sequences;
+
     const auto weight_multiplier =
         scripting_environment.GetProfileProperties().GetWeightMultiplier();
 
@@ -989,37 +993,14 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                 std::for_each(buffer->turn_to_ebn_map.begin(),
                               buffer->turn_to_ebn_map.end(),
                               [&turn_to_ebn_map](const auto &p) {
+                                  std::cout << "Copying " << p.first.from << "," << p.first.via
+                                            << "," << p.first.to << " (" << p.second.first << ","
+                                            << p.second.second << ") to the cache list"
+                                            << std::endl;
                                   // TODO: log conflicts here
                                   turn_to_ebn_map.insert(p);
                               });
             });
-
-        // Now, renumber all our maneuver overrides to use edge-based-nodes
-        std::vector<ManeuverOverride> renumbered_maneuver_overrides;
-
-        // Now, replace node-based-node ID values in the `node_sequence` with
-        // the edge-based-node values we found and stored in the `turn_to_ebn_map`
-        for (auto &unresolved_override : unresolved_maneuver_overrides)
-        {
-            ManeuverOverride resolved_override;
-            resolved_override.instruction_node = unresolved_override.instruction_node;
-            resolved_override.override_type = unresolved_override.override_type;
-            resolved_override.direction = unresolved_override.direction;
-
-            resolved_override.node_sequence.resize(unresolved_override.turn_sequence.size() + 1);
-
-            for (auto i = unresolved_override.turn_sequence.size() - 1; i > 0; --i)
-            {
-                const auto v = turn_to_ebn_map.find(unresolved_override.turn_sequence[i]);
-                if (v != turn_to_ebn_map.end())
-                {
-                    resolved_override.node_sequence[i - 1] = v->second.first;
-                    resolved_override.node_sequence[i] = v->second.second;
-                }
-            }
-
-            renumbered_maneuver_overrides.push_back(resolved_override);
-        }
 
         // Now, execute the pipeline.  The value of "5" here was chosen by experimentation
         // on a 16-CPU machine and seemed to give the best performance.  This value needs
@@ -1028,6 +1009,54 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         // get blocked too much by the slower (io-performing) `buffer_storage`
         tbb::parallel_pipeline(tbb::task_scheduler_init::default_num_threads() * 5,
                                generator_stage & processor_stage & output_stage);
+
+        // Now, replace node-based-node ID values in the `node_sequence` with
+        // the edge-based-node values we found and stored in the `turn_to_ebn_map`
+        for (auto &unresolved_override : unresolved_maneuver_overrides)
+        {
+            StorageManeuverOverride storage_override;
+            storage_override.instruction_node = unresolved_override.instruction_node;
+            storage_override.override_type = unresolved_override.override_type;
+            storage_override.direction = unresolved_override.direction;
+
+            std::vector<NodeID> node_sequence(unresolved_override.turn_sequence.size() + 1,
+                                              SPECIAL_NODEID);
+
+            for (std::int64_t i = unresolved_override.turn_sequence.size() - 1; i >= 0; --i)
+            {
+                const auto v = turn_to_ebn_map.find(unresolved_override.turn_sequence[i]);
+                if (v != turn_to_ebn_map.end())
+                {
+                    std::clog << "Adding pair " << v->second.first << "->" << v->second.second
+                              << std::endl;
+                    node_sequence[i] = v->second.first;
+                    node_sequence[i + 1] = v->second.second;
+                }
+                else
+                {
+                    std::cout << "Turn " << unresolved_override.turn_sequence[i].from << ","
+                              << unresolved_override.turn_sequence[i].via << ","
+                              << unresolved_override.turn_sequence[i].to
+                              << " not found in our cache list" << std::endl;
+                }
+            }
+            std::cout << "Generated node sequence: ";
+            for (const auto &n : node_sequence)
+            {
+                std::cout << " " << n;
+            }
+            std::cout << std::endl;
+            storage_override.node_sequence_offset_begin = maneuver_override_sequences.size();
+            storage_override.node_sequence_offset_end =
+                maneuver_override_sequences.size() + node_sequence.size();
+
+            storage_override.start_node = node_sequence.front();
+
+            maneuver_override_sequences.insert(
+                maneuver_override_sequences.end(), node_sequence.begin(), node_sequence.end());
+
+            storage_maneuver_overrides.push_back(storage_override);
+        }
 
         std::sort(delayed_data.begin(), delayed_data.end(), [](auto const &lhs, auto const &rhs) {
             return lhs.edge.source < rhs.edge.source;
@@ -1050,19 +1079,18 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         }
     }
     {
-        util::Log() << "Sorting and writing " << renumbered_maneuver_overrides.size()
+        util::Log() << "Sorting and writing " << storage_maneuver_overrides.size()
                     << " maneuver overrides...";
 
         // Sort by `from_node`, so that later lookups can be done with a binary search.
-        std::sort(renumbered_maneuver_overrides.begin(),
-                  renumbered_maneuver_overrides.end(),
-                  [](const auto &a, const auto &b) {
-                      return a.node_sequence.front() < b.node_sequence.front();
-                  });
+        std::sort(storage_maneuver_overrides.begin(),
+                  storage_maneuver_overrides.end(),
+                  [](const auto &a, const auto &b) { return a.start_node < b.start_node; });
         // write conditional turn penalties into the restrictions file
         storage::io::FileWriter writer(maneuver_overrides_filename,
                                        storage::io::FileWriter::GenerateFingerprint);
-        extractor::serialization::write(writer, renumbered_maneuver_overrides);
+        extractor::serialization::write(
+            writer, storage_maneuver_overrides, maneuver_override_sequences);
     }
 
     util::Log() << "Reunmbering turns";

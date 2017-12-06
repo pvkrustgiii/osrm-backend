@@ -26,22 +26,24 @@ struct InputManeuverOverride
 // Object returned by the datafacade
 struct ManeuverOverride
 {
-    std::vector<NodeID> node_sequence; // initially the internal node-based-node ID of the node
+    // util::ViewOrVector<NodeID, storage::Ownership::View> node_sequence;
+    std::vector<NodeID> node_sequence;
     // before the turn, then later, the edge_based_node_id of the turn
     NodeID instruction_node; // node-based node ID
     guidance::TurnType::Enum override_type;
     guidance::DirectionModifier::Enum direction;
+};
 
-    // check if all parts of the restriction reference an actual node
-    bool Valid() const
-    {
-        return node_sequence.size() >= 2 ||
-               std::none_of(node_sequence.begin(),
-                            node_sequence.end(),
-                            [](const auto &n) { return n == SPECIAL_NODEID; }) ||
-               direction != guidance::DirectionModifier::MaxDirectionModifier ||
-               override_type != guidance::TurnType::Invalid;
-    };
+// Object returned by the datafacade
+struct StorageManeuverOverride
+{
+    std::uint32_t node_sequence_offset_begin;
+    std::uint32_t node_sequence_offset_end;
+    NodeID start_node;
+    // before the turn, then later, the edge_based_node_id of the turn
+    NodeID instruction_node; // node-based node ID
+    guidance::TurnType::Enum override_type;
+    guidance::DirectionModifier::Enum direction;
 };
 
 struct NodeBasedTurn

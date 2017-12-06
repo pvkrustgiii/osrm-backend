@@ -151,6 +151,7 @@ class RouteAPI : public BaseAPI
                                              reversed_target,
                                              parameters.steps);
 
+            std::cout << "Assembling steps " << std::endl;
             if (parameters.steps)
             {
                 auto steps = guidance::assembleSteps(BaseAPI::facade,
@@ -162,39 +163,72 @@ class RouteAPI : public BaseAPI
                                                      reversed_target);
 
                 // Find overrides that match, and apply them
-                for (auto current_step_it = leg.steps.begin(); current_step_it != leg.steps.end();
+                // The +/-1 here are to remove the depart and arrive steps, which
+                // we don't allow updates to
+                for (auto current_step_it = steps.begin(); current_step_it != steps.end();
                      ++current_step_it)
                 {
+                    std::cout << "Searching for " << current_step_it->from_id << std::endl;
                     const auto overrides =
                         BaseAPI::facade.GetOverridesThatStartAt(current_step_it->from_id);
                     if (overrides.empty())
                         continue;
+                    std::cout << "~~~~ GOT A HIT, checking the rest ~~~" << std::endl;
                     for (const extractor::ManeuverOverride &maneuver_relation : overrides)
                     {
-                        std::size_t MAX_MANEUVER_DISTANCE =
-                            std::min(maneuver_relation.node_sequence.size(),
-                                     static_cast<decltype(maneuver_relation.node_sequence.size())>(
-                                         std::distance(current_step_it, leg.steps.end())));
+                        std::cout << "Override sequence is ";
+                        for (auto &n : maneuver_relation.node_sequence)
+                        {
+                            std::cout << n << " ";
+                        }
+                        std::cout << std::endl;
 
-                        const auto step_search_start = current_step_it;
-                        const auto step_search_end = current_step_it + MAX_MANEUVER_DISTANCE;
-                        auto search_result = std::search(
-                            step_search_start,
-                            step_search_end,
-                            maneuver_relation.node_sequence.begin(),
-                            maneuver_relation.node_sequence.end(),
-                            [](const auto &a, const auto &b) { return a.from_id == b; });
+                        std::cout << "Route sequence is ";
+                        for (auto it = current_step_it; it != steps.end(); ++it)
+                        {
+                            std::cout << it->from_id << " ";
+                        }
+                        std::cout << std::endl;
+
+                        auto search_iter = maneuver_relation.node_sequence.begin();
+                        auto route_iter = current_step_it;
+                        while (search_iter != maneuver_relation.node_sequence.end())
+                        {
+                            if (route_iter == steps.end())
+                                break;
+
+                            if (*search_iter == route_iter->from_id)
+                            {
+                                ++search_iter;
+                                ++route_iter;
+                                continue;
+                            }
+                            // Skip over duplicated EBNs in the step array
+                            if ((route_iter - 1)->from_id == route_iter->from_id)
+                            {
+                                ++route_iter;
+                                continue;
+                            }
+                            // If we get here, the values got out of sync so it's not
+                            // a match.
+                            break;
+                        }
 
                         // We got a match, update using the instruction_node
-                        if (search_result == step_search_start)
+                        if (search_iter == maneuver_relation.node_sequence.end())
                         {
+                            std::cout << "Node sequence matched, looking for the step "
+                                      << "that has the via node" << std::endl;
                             const auto via_node_coords = BaseAPI::facade.GetCoordinateOfNode(
                                 maneuver_relation.instruction_node);
                             // Find the step that has the instruction_node at the intersection point
                             auto step_to_update = std::find_if(
-                                step_search_start,
-                                step_search_end,
+                                current_step_it,
+                                route_iter,
                                 [&leg_geometry, &via_node_coords](const auto &step) {
+                                    std::cout << "Leg geom from " << step.geometry_begin << " to  "
+                                              << step.geometry_end << std::endl;
+
                                     // iterators over geometry of current step
                                     auto begin =
                                         leg_geometry.locations.begin() + step.geometry_begin;
@@ -203,12 +237,34 @@ class RouteAPI : public BaseAPI
                                         std::find_if(begin, end, [&](const auto &location) {
                                             return location == via_node_coords;
                                         });
-                                    return via_match != end;
+                                    if (via_match != end)
+                                    {
+                                        std::cout << "Found geometry match at "
+                                                  << (std::distance(begin, end) -
+                                                      std::distance(via_match, end))
+                                                  << std::endl;
+                                    }
+                                    std::cout << ((*(leg_geometry.locations.begin() +
+                                                     step.geometry_begin) == via_node_coords)
+                                                      ? "true"
+                                                      : "false")
+                                              << std::endl;
+                                    return *(leg_geometry.locations.begin() +
+                                             step.geometry_begin) == via_node_coords;
+                                    // return via_match != end;
                                 });
                             // We found a step that had the intersection_node coordinate
                             // in its geometry
-                            if (step_to_update != step_search_end)
+                            if (step_to_update != route_iter)
                             {
+                                // Don't update the last step (it's an arrive instruction)
+                                if (step_to_update == steps.begin() ||
+                                    step_to_update == steps.end() - 1)
+                                    break;
+                                std::cout << "Updating step "
+                                          << std::distance(steps.begin(), steps.end()) -
+                                                 std::distance(step_to_update, steps.end())
+                                          << std::endl;
                                 step_to_update->maneuver.instruction.type =
                                     maneuver_relation.override_type;
                                 if (maneuver_relation.direction !=
@@ -221,6 +277,7 @@ class RouteAPI : public BaseAPI
                             }
                         }
                     }
+                    std::cout << "Done tweaking steps" << std::endl;
                 }
 
                 /* Perform step-based post-processing.

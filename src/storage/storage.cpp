@@ -482,8 +482,10 @@ void Storage::PopulateLayout(DataLayout &layout)
         io::FileReader maneuver_overrides_file(config.GetPath(".osrm.maneuver_overrides"),
                                                io::FileReader::VerifyFingerprint);
         const auto number_of_overrides = maneuver_overrides_file.ReadElementCount64();
-        layout.SetBlockSize<extractor::ManeuverOverride>(DataLayout::MANEUVER_OVERRIDES,
-                                                         number_of_overrides);
+        layout.SetBlockSize<extractor::StorageManeuverOverride>(DataLayout::MANEUVER_OVERRIDES,
+                                                                number_of_overrides);
+        const auto number_of_nodes = maneuver_overrides_file.ReadElementCount64();
+        layout.SetBlockSize<NodeID>(DataLayout::MANEUVER_OVERRIDE_NODE_SEQUENCES, number_of_nodes);
     }
 
     {
@@ -1097,10 +1099,15 @@ void Storage::PopulateData(const DataLayout &layout, char *memory_ptr)
             io::FileReader maneuver_overrides_file(config.GetPath(".osrm.maneuver_overrides"),
                                                    io::FileReader::VerifyFingerprint);
             const auto number_of_overrides = maneuver_overrides_file.ReadElementCount64();
+            const auto number_of_nodes = maneuver_overrides_file.ReadElementCount64();
             const auto maneuver_overrides_ptr =
-                layout.GetBlockPtr<extractor::ManeuverOverride, true>(
+                layout.GetBlockPtr<extractor::StorageManeuverOverride, true>(
                     memory_ptr, DataLayout::MANEUVER_OVERRIDES);
             maneuver_overrides_file.ReadInto(maneuver_overrides_ptr, number_of_overrides);
+
+            const auto maneuver_override_node_sequences_ptr = layout.GetBlockPtr<NodeID, true>(
+                memory_ptr, DataLayout::MANEUVER_OVERRIDE_NODE_SEQUENCES);
+            maneuver_overrides_file.ReadInto(maneuver_override_node_sequences_ptr, number_of_nodes);
         }
     }
 }

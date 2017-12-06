@@ -205,7 +205,8 @@ class ContiguousInternalMemoryDataFacadeBase : public BaseDataFacade
     util::vector_view<std::size_t> m_datasource_name_lengths;
     util::vector_view<util::guidance::LaneTupleIdPair> m_lane_tupel_id_pairs;
 
-    util::vector_view<extractor::ManeuverOverride> m_maneuver_overrides;
+    util::vector_view<extractor::StorageManeuverOverride> m_maneuver_overrides;
+    util::vector_view<NodeID> m_maneuver_override_node_sequences;
 
     std::unique_ptr<SharedRTree> m_static_rtree;
     std::unique_ptr<SharedGeospatialQuery> m_geospatial_query;
@@ -504,11 +505,17 @@ class ContiguousInternalMemoryDataFacadeBase : public BaseDataFacade
 
     void InitializeManeuverOverridePointers(storage::DataLayout &data_layout, char *memory_block)
     {
-        auto maneuver_overrides_ptr = data_layout.GetBlockPtr<extractor::ManeuverOverride>(
+        auto maneuver_overrides_ptr = data_layout.GetBlockPtr<extractor::StorageManeuverOverride>(
             memory_block, storage::DataLayout::MANEUVER_OVERRIDES);
-        m_maneuver_overrides = util::vector_view<extractor::ManeuverOverride>(
+        m_maneuver_overrides = util::vector_view<extractor::StorageManeuverOverride>(
             maneuver_overrides_ptr,
             data_layout.num_entries[storage::DataLayout::MANEUVER_OVERRIDES]);
+
+        auto maneuver_override_node_sequences_ptr = data_layout.GetBlockPtr<NodeID>(
+            memory_block, storage::DataLayout::MANEUVER_OVERRIDE_NODE_SEQUENCES);
+        m_maneuver_override_node_sequences = util::vector_view<NodeID>(
+            maneuver_override_node_sequences_ptr,
+            data_layout.num_entries[storage::DataLayout::MANEUVER_OVERRIDE_NODE_SEQUENCES]);
     }
 
     void InitializeInternalPointers(storage::DataLayout &data_layout,
@@ -915,12 +922,22 @@ class ContiguousInternalMemoryDataFacadeBase : public BaseDataFacade
         // so we can stop searching after we get to a node > edge_based_node_id
         for (const auto & override : m_maneuver_overrides)
         {
-            if (found && override.node_sequence.front() != edge_based_node_id)
+            if (found && override.start_node != edge_based_node_id)
                 break;
 
-            if (override.node_sequence.front() == edge_based_node_id)
+            if (override.start_node == edge_based_node_id)
             {
-                results.push_back(override);
+                std::cout << "Found start node " << override.start_node << std::endl;
+                std::cout << "Copying from " << override.node_sequence_offset_begin << " to "
+                          << override.node_sequence_offset_end << std::endl;
+                std::vector<NodeID> sequence(m_maneuver_override_node_sequences.begin() +
+                                                 override.node_sequence_offset_begin,
+                                             m_maneuver_override_node_sequences.begin() +
+                                                 override.node_sequence_offset_end);
+                results.push_back(extractor::ManeuverOverride{std::move(sequence),
+                                                              override.instruction_node,
+                                                              override.override_type,
+                                                              override.direction});
                 found = true;
             }
         }

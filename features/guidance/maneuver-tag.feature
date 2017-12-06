@@ -35,10 +35,10 @@ Feature: Maneuver tag support
             | b,g       | A Street,C Street,C Street          | depart,turn sharp right,arrive           |
         # Testing disconnected via ways (first turn is only modified if you end up
         # on a particular way)
-            | h,a       | J Street,C Street,A Street,A Street | depart,turn left,turn left,arrive        |
-            | h,e       | J Street,C Street,B Street,B Street | depart,turn sharp left,turn left,arrive  |
+        #    | h,a       | J Street,C Street,A Street,A Street | depart,turn left,turn left,arrive        |
+        #    | h,e       | J Street,C Street,B Street,B Street | depart,turn sharp left,turn left,arrive  |
         # Testing re-awakening suppressed turns
-            | a,e       | A Street,B Street,B Street          | depart,turn slight_left,arrive           |
+            | a,e       | A Street,B Street,B Street          | depart,turn slight left,arrive           |
 
     Scenario: single via-way
       Given the node map
@@ -59,8 +59,8 @@ Feature: Maneuver tag support
             | ij    | J Street | no     |
 
         And the relations
-            | type     | way:from | way:via | way:to | maneuver | direction   |
-            | maneuver | abc      | cgi     | ij     | turn     | sharp_right |
+            | type     | way:from | way:via | way:to | node:via | maneuver | direction   |
+            | maneuver | abc      | cgi     | ij     | c        | turn     | sharp_right |
 
         When I route I should get
             | waypoints | route                               | turns                                    |
@@ -88,12 +88,12 @@ Feature: Maneuver tag support
             | gk    | G Street | no     |
 
         And the relations
-            | type     | way:from | way:via | way:via | way:to | maneuver | direction   |
-            | maneuver | abc      | cg      | gi      | ij     | turn     | sharp_right |
+            | type     | way:from | way:via | way:via | way:to | node:via | maneuver | direction   |
+            | maneuver | abc      | cg      | gi      | ij     | c        | turn     | sharp_right |
 
         When I route I should get
             | waypoints | route                               | turns                                    |
-            | a,j       | A Street,C Street,J Street,J Street | depart,turn sharp right,turn left,arrive |
+            | a,j       | A Street,C Street,J Street,J Street | depart,turn sharp right,end of road left,arrive |
 
 
     Scenario: Use maneuver tag to announce a particular turn type
