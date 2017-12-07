@@ -319,7 +319,8 @@ const constexpr char *modifier_names[] = {"uturn",
                                           "straight",
                                           "slight left",
                                           "left",
-                                          "sharp left"};
+                                          "sharp left",
+                                          "UNDEFINED"};
 
 /**
  * Human readable values for TurnType enum values
@@ -361,13 +362,14 @@ const constexpr TurnTypeName turn_type_names[] = {
     {"roundabout turn", "roundabout turn"},
     {"exit roundabout", "exit roundabout turn"},
     {"invalid", "(stay on roundabout)"},
-    {"invalid", "(sliproad)"}};
+    {"invalid", "(sliproad)"},
+    {"MAXVALUE", "MAXVALUE"}};
 
 } // ns detail
 
 inline std::string instructionTypeToString(const TurnType::Enum type)
 {
-    static_assert(sizeof(detail::turn_type_names) / sizeof(detail::turn_type_names[0]) >=
+    static_assert((sizeof(detail::turn_type_names) + 1) / sizeof(detail::turn_type_names[0]) >=
                       TurnType::MaxTurnType,
                   "Some turn types have no string representation.");
     return detail::turn_type_names[static_cast<std::size_t>(type)].external_name;
@@ -375,7 +377,7 @@ inline std::string instructionTypeToString(const TurnType::Enum type)
 
 inline std::string internalInstructionTypeToString(const TurnType::Enum type)
 {
-    static_assert(sizeof(detail::turn_type_names) / sizeof(detail::turn_type_names[0]) >=
+    static_assert((sizeof(detail::turn_type_names) + 1) / sizeof(detail::turn_type_names[0]) >=
                       TurnType::MaxTurnType,
                   "Some turn types have no string representation.");
     return detail::turn_type_names[static_cast<std::size_t>(type)].internal_name;
@@ -383,7 +385,7 @@ inline std::string internalInstructionTypeToString(const TurnType::Enum type)
 
 inline std::string instructionModifierToString(const DirectionModifier::Enum modifier)
 {
-    static_assert(sizeof(detail::modifier_names) / sizeof(detail::modifier_names[0]) >=
+    static_assert((sizeof(detail::modifier_names) + 1) / sizeof(detail::modifier_names[0]) >=
                       DirectionModifier::MaxDirectionModifier,
                   "Some direction modifiers have no string representation.");
     return detail::modifier_names[static_cast<std::size_t>(modifier)];

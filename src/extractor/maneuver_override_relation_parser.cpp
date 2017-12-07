@@ -55,6 +55,9 @@ ManeuverOverrideRelationParser::TryParse(const osmium::Relation &relation) const
     maneuver_override.maneuver = relation.tags().get_value_by_key("maneuver", "");
     maneuver_override.direction = relation.tags().get_value_by_key("direction", "");
 
+    std::cout << "maneuver " << maneuver_override.maneuver << std::endl;
+    std::cout << "direction " << maneuver_override.direction << std::endl;
+
     boost::optional<std::uint64_t> from = boost::none, via = boost::none, to = boost::none;
     std::vector<std::uint64_t> via_ways;
 

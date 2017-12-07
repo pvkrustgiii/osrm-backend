@@ -20,6 +20,8 @@
 
 #include "engine/internal_route_result.hpp"
 
+#include "extractor/guidance/turn_instruction.hpp"
+
 #include "util/coordinate.hpp"
 #include "util/integer_range.hpp"
 #include "util/json_util.hpp"
@@ -182,6 +184,14 @@ class RouteAPI : public BaseAPI
                             std::cout << n << " ";
                         }
                         std::cout << std::endl;
+                        std::cout << "Override type is "
+                                  << extractor::guidance::internalInstructionTypeToString(
+                                         maneuver_relation.override_type)
+                                  << std::endl;
+                        std::cout << "Override direction is "
+                                  << extractor::guidance::instructionModifierToString(
+                                         maneuver_relation.direction)
+                                  << std::endl;
 
                         std::cout << "Route sequence is ";
                         for (auto it = current_step_it; it != steps.end(); ++it)
@@ -258,18 +268,36 @@ class RouteAPI : public BaseAPI
                             if (step_to_update != route_iter)
                             {
                                 // Don't update the last step (it's an arrive instruction)
-                                if (step_to_update == steps.begin() ||
-                                    step_to_update == steps.end() - 1)
-                                    break;
                                 std::cout << "Updating step "
                                           << std::distance(steps.begin(), steps.end()) -
                                                  std::distance(step_to_update, steps.end())
                                           << std::endl;
-                                step_to_update->maneuver.instruction.type =
-                                    maneuver_relation.override_type;
+                                if (maneuver_relation.override_type !=
+                                    extractor::guidance::TurnType::MaxTurnType)
+                                {
+                                    std::cout
+                                        << "    instruction was "
+                                        << extractor::guidance::internalInstructionTypeToString(
+                                               step_to_update->maneuver.instruction.type)
+                                        << " now "
+                                        << extractor::guidance::detail::turn_type_names
+                                               [maneuver_relation.override_type]
+                                                   .internal_name
+                                        << std::endl;
+                                    step_to_update->maneuver.instruction.type =
+                                        maneuver_relation.override_type;
+                                }
                                 if (maneuver_relation.direction !=
                                     extractor::guidance::DirectionModifier::MaxDirectionModifier)
                                 {
+                                    std::cout
+                                        << "    direction was "
+                                        << static_cast<int>(step_to_update->maneuver.instruction
+                                                                .direction_modifier)
+                                        << " now "
+                                        << extractor::guidance::instructionModifierToString(
+                                               maneuver_relation.direction)
+                                        << std::endl;
                                     step_to_update->maneuver.instruction.direction_modifier =
                                         maneuver_relation.direction;
                                 }

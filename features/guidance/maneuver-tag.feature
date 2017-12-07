@@ -130,12 +130,12 @@ Feature: Maneuver tag support
             | mo    |           | no     | service      |
 
         And the relations
-            | type     | way:from | node:via | way:to | maneuver |
-            | maneuver | mh       | m        | mt     | left     |
+            | type     | way:from | node:via | way:to | maneuver | direction |
+            | maneuver | mh       | m        | mt     | turn     | left      |
 
         When I route I should get
-            | waypoints | route                        | turns                 |
-            | h,t       | CA-120,Priest Rd,Priest Rd   | depart,left,arrive    |
+            | waypoints | route                        | turns                        |
+            | h,t       | CA-120,Priest Rd,Priest Rd   | depart,turn left,arrive      |
   #original | h,t       | CA-120,Priest Rd,Priest Rd   | depart,turn straight,arrive  |
 
     Scenario: Use maneuver tag to announce lane guidance
@@ -163,11 +163,13 @@ Feature: Maneuver tag support
             | br    | Marsh Rd  | yes    | secondary |
             | cd    | Marsh Rd  | yes    | secondary |
             | cw    | Marsh Rd  | yes    | secondary |
-            | bce   | service   | no     | service   |
+            | bc    | service   | no     | service   |
+            | ce    | service   | no     | service   |
 
         And the relations
-            | type     | way:from | node:via | way:to | maneuver |
-            | maneuver | ab       | b        | cd     | uturn    |
+            | type     | way:from | node:via | way:via | way:to | maneuver |
+            | maneuver | ab       | c        | bc      | cd     | uturn    |
+            | maneuver | ab       | b        | bc      | cd     | suppress |
 
         When I route I should get
             | waypoints | route                         | turns                    |
@@ -200,11 +202,11 @@ Feature: Maneuver tag support
             | pt    | 395     | no     | primary       |
 
         And the relations
-            | type     | way:from | node:via | way:to | maneuver  |
-            | maneuver | zy       | p        | pt     | suppress  |
+            | type     | way:from | node:via | way:via | way:to | maneuver  |
+            | maneuver | zy       | p        | yp      | pt     | suppress  |
 
         When I route I should get
             | waypoints | route           | turns                      |
-            | z,t       | zy,yp,pt        | depart, left, arrive       |
+            | z,t       | NY Ave,395,395  | depart,on ramp left,arrive |
   #original | z,t       | NY Ave,,395,395 | depart,on ramp left,fork slight left,arrive |
 
