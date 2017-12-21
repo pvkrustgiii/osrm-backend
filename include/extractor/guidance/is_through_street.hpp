@@ -1,5 +1,8 @@
-#include "extractor/guidance/sliproad_handler.hpp"
+#ifndef OSRM_EXTRACTOR_GUIDANCE_IS_THROUGH_STREET_HPP_
+#define OSRM_EXTRACTOR_GUIDANCE_IS_THROUGH_STREET_HPP_
+
 #include "extractor/guidance/constants.hpp"
+#include "extractor/guidance/sliproad_handler.hpp"
 #include "util/assert.hpp"
 #include "util/bearing.hpp"
 #include "util/coordinate_calculation.hpp"
@@ -29,7 +32,12 @@ namespace guidance
 //     return std::tie(way.in_restriction.via, way.out_restriction.via, way.in_restriction.from);
 // }
 
-bool isThroughStreet(const EdgeID from, const IntersectionView &intersection, const util::NodeBasedDynamicGraph &node_based_graph, const EdgeBasedNodeDataContainer &node_data_container, const util::NameTable &name_table, const SuffixTable &street_name_suffix_table)
+inline bool isThroughStreet(const EdgeID from,
+                            const IntersectionView &intersection,
+                            const util::NodeBasedDynamicGraph &node_based_graph,
+                            const EdgeBasedNodeDataContainer &node_data_container,
+                            const util::NameTable &name_table,
+                            const SuffixTable &street_name_suffix_table)
 {
     BOOST_ASSERT(from != SPECIAL_EDGEID);
     BOOST_ASSERT(!intersection.empty());
@@ -55,7 +63,8 @@ bool isThroughStreet(const EdgeID from, const IntersectionView &intersection, co
     return std::find_if(first, last, same_name) != last;
 }
 
-
 } // namespace guidance
 } // namespace extractor
 } // namespace osrm
+
+#endif /*OSRM_EXTRACTOR_GUIDANCE_IS_THROUGH_STREET_HPP_*/

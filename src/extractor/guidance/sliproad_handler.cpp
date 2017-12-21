@@ -1,10 +1,10 @@
 #include "extractor/guidance/sliproad_handler.hpp"
 #include "extractor/guidance/constants.hpp"
+#include "extractor/guidance/is_through_street.hpp"
 #include "util/assert.hpp"
 #include "util/bearing.hpp"
 #include "util/coordinate_calculation.hpp"
 #include "util/guidance/name_announcements.hpp"
-#include "extractor/guidance/is_through_street.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -345,7 +345,12 @@ operator()(const NodeID /*nid*/, const EdgeID source_edge_id, Intersection inter
         }
 
         // If the sliproad candidate is a through street, we cannot handle it as a sliproad.
-        if (::osrm::extractor::guidance::isThroughStreet(sliproad_edge, target_intersection, node_based_graph, node_data_container, name_table, street_name_suffix_table))
+        if (::osrm::extractor::guidance::isThroughStreet(sliproad_edge,
+                                                         target_intersection,
+                                                         node_based_graph,
+                                                         node_data_container,
+                                                         name_table,
+                                                         street_name_suffix_table))
         {
             continue;
         }
@@ -690,7 +695,8 @@ bool SliproadHandler::nextIntersectionIsTooFarAway(const NodeID start, const Edg
     return accumulator.too_far_away;
 }
 
-// bool SliproadHandler::isThroughStreet(const EdgeID from, const IntersectionView &intersection) const
+// bool SliproadHandler::isThroughStreet(const EdgeID from, const IntersectionView &intersection)
+// const
 // {
 //     BOOST_ASSERT(from != SPECIAL_EDGEID);
 //     BOOST_ASSERT(!intersection.empty());
