@@ -9,6 +9,8 @@
 #include "extractor/restriction.hpp"
 #include "extractor/serialization.hpp"
 
+#include "guidance/files.hpp"
+
 #include "storage/io.hpp"
 
 #include "util/exception.hpp"
@@ -112,8 +114,8 @@ void checkWeightsConsistency(
     extractor::EdgeBasedNodeDataContainer node_data;
     extractor::files::readNodeData(config.GetPath(".osrm.ebg_nodes"), node_data);
 
-    extractor::TurnDataContainer turn_data;
-    extractor::files::readTurnData(config.GetPath(".osrm.edges"), turn_data);
+    guidance::TurnDataContainer turn_data;
+    guidance::files::readTurnData(config.GetPath(".osrm.edges"), turn_data);
 
     for (auto &edge : edge_based_edge_list)
     {
@@ -560,7 +562,7 @@ Updater::LoadAndUpdateEdgeExpandedGraph(std::vector<extractor::EdgeBasedEdge> &e
                               SOURCE_REF);
 
     extractor::EdgeBasedNodeDataContainer node_data;
-    extractor::TurnDataContainer turn_data;
+    guidance::TurnDataContainer turn_data;
     extractor::SegmentDataContainer segment_data;
     extractor::ProfileProperties profile_properties;
     std::vector<TurnPenalty> turn_weight_penalties;
@@ -576,7 +578,7 @@ Updater::LoadAndUpdateEdgeExpandedGraph(std::vector<extractor::EdgeBasedEdge> &e
         };
 
         const auto load_edge_data = [&] {
-            extractor::files::readTurnData(config.GetPath(".osrm.edges"), turn_data);
+            guidance::files::readTurnData(config.GetPath(".osrm.edges"), turn_data);
         };
 
         const auto load_turn_weight_penalties = [&] {

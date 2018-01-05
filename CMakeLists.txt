@@ -158,6 +158,7 @@ add_executable(osrm-datastore src/tools/store.cpp $<TARGET_OBJECTS:UTIL>)
 add_library(osrm src/osrm/osrm.cpp $<TARGET_OBJECTS:ENGINE> $<TARGET_OBJECTS:UTIL> $<TARGET_OBJECTS:STORAGE>)
 add_library(osrm_contract src/osrm/contractor.cpp $<TARGET_OBJECTS:CONTRACTOR> $<TARGET_OBJECTS:UTIL>)
 add_library(osrm_extract src/osrm/extractor.cpp $<TARGET_OBJECTS:GUIDANCE> $<TARGET_OBJECTS:EXTRACTOR> $<TARGET_OBJECTS:UTIL>)
+add_library(osrm_guidance $<TARGET_OBJECTS:GUIDANCE> $<TARGET_OBJECTS:UTIL>)
 add_library(osrm_partition $<TARGET_OBJECTS:PARTITIONER> $<TARGET_OBJECTS:UTIL>)
 add_library(osrm_customize $<TARGET_OBJECTS:CUSTOMIZER> $<TARGET_OBJECTS:UTIL>)
 add_library(osrm_update $<TARGET_OBJECTS:UPDATER> $<TARGET_OBJECTS:UTIL>)
@@ -608,7 +609,7 @@ set(BOOST_ENGINE_LIBRARIES
 
 # Binaries
 target_link_libraries(osrm-datastore osrm_store ${Boost_PROGRAM_OPTIONS_LIBRARY})
-target_link_libraries(osrm-extract osrm_extract ${Boost_PROGRAM_OPTIONS_LIBRARY})
+target_link_libraries(osrm-extract osrm_guidance osrm_extract ${Boost_PROGRAM_OPTIONS_LIBRARY})
 target_link_libraries(osrm-partition osrm_partition ${Boost_PROGRAM_OPTIONS_LIBRARY})
 target_link_libraries(osrm-customize osrm_customize ${Boost_PROGRAM_OPTIONS_LIBRARY})
 target_link_libraries(osrm-contract osrm_contract ${Boost_PROGRAM_OPTIONS_LIBRARY})
@@ -625,6 +626,12 @@ set(EXTRACTOR_LIBRARIES
     ${MAYBE_STXXL_LIBRARY}
     ${TBB_LIBRARIES}
     ${ZLIB_LIBRARY}
+    ${MAYBE_COVERAGE_LIBRARIES})
+set(GUIDANCE_LIBRARIES
+    ${BOOST_BASE_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${USED_LUA_LIBRARIES}
+    ${TBB_LIBRARIES}
     ${MAYBE_COVERAGE_LIBRARIES})
 set(PARTITIONER_LIBRARIES
     ${BOOST_ENGINE_LIBRARIES}
@@ -679,6 +686,7 @@ target_link_libraries(osrm ${ENGINE_LIBRARIES})
 target_link_libraries(osrm_update ${UPDATER_LIBRARIES})
 target_link_libraries(osrm_contract ${CONTRACTOR_LIBRARIES} osrm_update osrm_store)
 target_link_libraries(osrm_extract ${EXTRACTOR_LIBRARIES})
+target_link_libraries(osrm_guidance ${GUIDANCE_LIBRARIES} osrm_store)
 target_link_libraries(osrm_partition ${PARTITIONER_LIBRARIES})
 target_link_libraries(osrm_customize ${CUSTOMIZER_LIBRARIES} osrm_update osrm_store)
 target_link_libraries(osrm_store ${STORAGE_LIBRARIES})

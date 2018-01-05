@@ -2,14 +2,16 @@
 #include "extractor/conditional_turn_penalty.hpp"
 #include "extractor/edge_based_edge.hpp"
 #include "extractor/files.hpp"
+#include "extractor/intersection/intersection_analysis.hpp"
 #include "extractor/scripting_environment.hpp"
+#include "extractor/serialization.hpp"
 #include "extractor/suffix_table.hpp"
+
+#include "guidance/files.hpp"
 #include "guidance/turn_analysis.hpp"
+#include "guidance/turn_data_container.hpp"
 #include "guidance/turn_lane_handler.hpp"
 
-#include "extractor/intersection/intersection_analysis.hpp"
-
-#include "extractor/serialization.hpp"
 #include "storage/io.hpp"
 
 #include "util/assert.hpp"
@@ -73,7 +75,7 @@ EdgeBasedGraphFactory::EdgeBasedGraphFactory(
     const std::vector<util::Coordinate> &coordinates,
     const util::NameTable &name_table,
     const std::unordered_set<EdgeID> &segregated_edges,
-    guidance::LaneDescriptionMap &lane_description_map)
+    extractor::LaneDescriptionMap &lane_description_map)
     : m_edge_based_node_container(node_data_container), m_number_of_edge_based_nodes(0),
       m_coordinates(coordinates), m_node_based_graph(std::move(node_based_graph)),
       m_barrier_nodes(barrier_nodes), m_traffic_lights(traffic_lights),
@@ -421,19 +423,19 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
     storage::io::FileWriter turn_penalties_index_file(turn_penalties_index_filename,
                                                       storage::io::FileWriter::HasNoFingerprint);
 
-    TurnDataExternalContainer turn_data_container;
+    guidance::TurnDataExternalContainer turn_data_container;
 
     SuffixTable street_name_suffix_table(scripting_environment);
     const auto &turn_lanes_data = transformTurnLaneMapIntoArrays(lane_description_map);
-    guidance::MergableRoadDetector mergable_road_detector(m_node_based_graph,
-                                                          m_edge_based_node_container,
-                                                          m_coordinates,
-                                                          m_compressed_edge_container,
-                                                          node_restriction_map,
-                                                          m_barrier_nodes,
-                                                          turn_lanes_data,
-                                                          name_table,
-                                                          street_name_suffix_table);
+    intersection::MergableRoadDetector mergable_road_detector(m_node_based_graph,
+                                                              m_edge_based_node_container,
+                                                              m_coordinates,
+                                                              m_compressed_edge_container,
+                                                              node_restriction_map,
+                                                              m_barrier_nodes,
+                                                              turn_lanes_data,
+                                                              name_table,
+                                                              street_name_suffix_table);
 
     // Loop over all turns and generate new set of edges.
     // Three nested loop look super-linear, but we are dealing with a (kind of)
@@ -525,8 +527,8 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         {
             std::size_t nodes_processed = 0;
 
-            std::vector<TurnData> continuous_turn_data; // populate answers from guidance
-            std::vector<TurnData> delayed_turn_data;    // populate answers from guidance
+            std::vector<guidance::TurnData> continuous_turn_data; // populate answers from guidance
+            std::vector<guidance::TurnData> delayed_turn_data;    // populate answers from guidance
         };
         using TurnsPipelineBufferPtr = std::shared_ptr<TurnsPipelineBuffer>;
 
@@ -988,12 +990,12 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                             OSRM_ASSERT(turn != intersection.end(),
                                         m_coordinates[intersection_node]);
 
-                            buffer->continuous_turn_data.push_back(
-                                TurnData{turn->instruction,
-                                         turn->lane_data_id,
-                                         entry_class_id,
-                                         util::guidance::TurnBearing(intersection[0].bearing),
-                                         util::guidance::TurnBearing(turn->bearing)});
+                            buffer->continuous_turn_data.push_back(guidance::TurnData{
+                                turn->instruction,
+                                turn->lane_data_id,
+                                entry_class_id,
+                                util::guidance::TurnBearing(intersection[0].bearing),
+                                util::guidance::TurnBearing(turn->bearing)});
 
                             // when turning off a a via-way turn restriction, we need to not only
                             // handle the normal edges for the way, but also add turns for every
@@ -1023,7 +1025,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                                         if (restriction.condition.empty())
                                             continue;
 
-                                        buffer->delayed_turn_data.push_back(TurnData{
+                                        buffer->delayed_turn_data.push_back(guidance::TurnData{
                                             turn->instruction,
                                             turn->lane_data_id,
                                             entry_class_id,
@@ -1032,7 +1034,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                                     }
                                     else
                                     {
-                                        buffer->delayed_turn_data.push_back(TurnData{
+                                        buffer->delayed_turn_data.push_back(guidance::TurnData{
                                             turn->instruction,
                                             turn->lane_data_id,
                                             entry_class_id,
@@ -1080,7 +1082,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
 
         // Last part of the pipeline puts all the calculated data into the serial buffers
         util::Percent guidance_progress(log, node_count);
-        std::vector<TurnData> delayed_turn_data;
+        std::vector<guidance::TurnData> delayed_turn_data;
 
         tbb::filter_t<TurnsPipelineBufferPtr, void> guidance_output_stage(
             tbb::filter::serial_in_order, [&](auto buffer) {
@@ -1189,7 +1191,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
     }
     util::Log() << "done.";
 
-    files::writeTurnData(turn_data_filename, turn_data_container);
+    guidance::files::writeTurnData(turn_data_filename, turn_data_container);
 
     util::Log() << "Generated " << m_edge_based_node_segments.size() << " edge based node segments";
     util::Log() << "Node-based graph contains " << node_based_edge_counter << " edges";
