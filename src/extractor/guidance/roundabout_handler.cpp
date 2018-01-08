@@ -479,7 +479,15 @@ Intersection RoundaboutHandler::handleRoundabouts(const RoundaboutType roundabou
                     crossing_roundabout)
                 {
                     turn.instruction = getInstructionForObvious(
-                        intersection.size(), via_eid, isThroughStreet(idx, intersection), turn);
+                        intersection.size(),
+                        via_eid,
+                        ::osrm::extractor::guidance::isThroughStreet(idx,
+                                                                     intersection,
+                                                                     node_based_graph,
+                                                                     node_data_container,
+                                                                     name_table,
+                                                                     street_name_suffix_table),
+                        turn);
                 }
                 else
                 {

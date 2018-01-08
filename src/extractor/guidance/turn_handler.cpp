@@ -288,7 +288,15 @@ Intersection TurnHandler::handleThreeWayTurn(const EdgeID via_edge, Intersection
         if (obvious_index == 1)
         {
             intersection[1].instruction = getInstructionForObvious(
-                3, via_edge, isThroughStreet(1, intersection), intersection[1]);
+                3,
+                via_edge,
+                ::osrm::extractor::guidance::isThroughStreet(1,
+                                                             intersection,
+                                                             node_based_graph,
+                                                             node_data_container,
+                                                             name_table,
+                                                             street_name_suffix_table),
+                intersection[1]);
             const auto second_direction = (direction_at_one == direction_at_two &&
                                            direction_at_two == DirectionModifier::Straight)
                                               ? DirectionModifier::SlightLeft
@@ -301,7 +309,15 @@ Intersection TurnHandler::handleThreeWayTurn(const EdgeID via_edge, Intersection
         {
             BOOST_ASSERT(obvious_index == 2);
             intersection[2].instruction = getInstructionForObvious(
-                3, via_edge, isThroughStreet(2, intersection), intersection[2]);
+                3,
+                via_edge,
+                ::osrm::extractor::guidance::isThroughStreet(2,
+                                                             intersection,
+                                                             node_based_graph,
+                                                             node_data_container,
+                                                             name_table,
+                                                             street_name_suffix_table),
+                intersection[2]);
             const auto first_direction = (direction_at_one == direction_at_two &&
                                           direction_at_one == DirectionModifier::Straight)
                                              ? DirectionModifier::SlightRight
@@ -333,11 +349,16 @@ Intersection TurnHandler::handleComplexTurn(const EdgeID via_edge, Intersection 
     // check whether the obvious choice is actually a through street
     if (obvious_index != 0)
     {
-        intersection[obvious_index].instruction =
-            getInstructionForObvious(intersection.size(),
-                                     via_edge,
-                                     isThroughStreet(obvious_index, intersection),
-                                     intersection[obvious_index]);
+        intersection[obvious_index].instruction = getInstructionForObvious(
+            intersection.size(),
+            via_edge,
+            ::osrm::extractor::guidance::isThroughStreet(obvious_index,
+                                                         intersection,
+                                                         node_based_graph,
+                                                         node_data_container,
+                                                         name_table,
+                                                         street_name_suffix_table),
+            intersection[obvious_index]);
 
         // assign left/right turns
         intersection = assignLeftTurns(via_edge, std::move(intersection), obvious_index);

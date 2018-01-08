@@ -1,6 +1,6 @@
 #include "extractor/guidance/sliproad_handler.hpp"
 #include "extractor/guidance/constants.hpp"
-#include "extractor/guidance/is_through_street.hpp"
+// #include "extractor/guidance/is_through_street.hpp"
 #include "util/assert.hpp"
 #include "util/bearing.hpp"
 #include "util/coordinate_calculation.hpp"
@@ -345,12 +345,13 @@ operator()(const NodeID /*nid*/, const EdgeID source_edge_id, Intersection inter
         }
 
         // If the sliproad candidate is a through street, we cannot handle it as a sliproad.
-        if (::osrm::extractor::guidance::isThroughStreet(sliproad_edge,
-                                                         target_intersection,
-                                                         node_based_graph,
-                                                         node_data_container,
-                                                         name_table,
-                                                         street_name_suffix_table))
+        // if (::osrm::extractor::guidance::isThroughStreet(sliproad_edge,
+        //                                                  target_intersection,
+        //                                                  node_based_graph,
+        //                                                  node_data_container,
+        //                                                  name_table,
+        //                                                  street_name_suffix_table))
+        if (SliproadHandler::isThroughStreet(sliproad_edge, target_intersection))
         {
             continue;
         }
@@ -695,32 +696,31 @@ bool SliproadHandler::nextIntersectionIsTooFarAway(const NodeID start, const Edg
     return accumulator.too_far_away;
 }
 
-// bool SliproadHandler::isThroughStreet(const EdgeID from, const IntersectionView &intersection)
-// const
-// {
-//     BOOST_ASSERT(from != SPECIAL_EDGEID);
-//     BOOST_ASSERT(!intersection.empty());
+bool SliproadHandler::isThroughStreet(const EdgeID from, const IntersectionView &intersection) const
+{
+    BOOST_ASSERT(from != SPECIAL_EDGEID);
+    BOOST_ASSERT(!intersection.empty());
 
-//     const auto from_annotation_id = node_based_graph.GetEdgeData(from).annotation_data;
-//     const auto &edge_name_id = node_data_container.GetAnnotation(from_annotation_id).name_id;
+    const auto from_annotation_id = node_based_graph.GetEdgeData(from).annotation_data;
+    const auto &edge_name_id = node_data_container.GetAnnotation(from_annotation_id).name_id;
 
-//     auto first = begin(intersection) + 1; // Skip UTurn road
-//     auto last = end(intersection);
+    auto first = begin(intersection) + 1; // Skip UTurn road
+    auto last = end(intersection);
 
-//     auto same_name = [&](const auto &road) {
-//         const auto annotation_id = node_based_graph.GetEdgeData(road.eid).annotation_data;
-//         const auto &road_name_id = node_data_container.GetAnnotation(annotation_id).name_id;
+    auto same_name = [&](const auto &road) {
+        const auto annotation_id = node_based_graph.GetEdgeData(road.eid).annotation_data;
+        const auto &road_name_id = node_data_container.GetAnnotation(annotation_id).name_id;
 
-//         return edge_name_id != EMPTY_NAMEID && //
-//                road_name_id != EMPTY_NAMEID && //
-//                !util::guidance::requiresNameAnnounced(edge_name_id,
-//                                                       road_name_id,
-//                                                       name_table,
-//                                                       street_name_suffix_table); //
-//     };
+        return edge_name_id != EMPTY_NAMEID && //
+               road_name_id != EMPTY_NAMEID && //
+               !util::guidance::requiresNameAnnounced(edge_name_id,
+                                                      road_name_id,
+                                                      name_table,
+                                                      street_name_suffix_table); //
+    };
 
-//     return std::find_if(first, last, same_name) != last;
-// }
+    return std::find_if(first, last, same_name) != last;
+}
 
 bool SliproadHandler::roadContinues(const EdgeID current, const EdgeID next) const
 {

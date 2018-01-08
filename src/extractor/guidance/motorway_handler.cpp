@@ -236,11 +236,16 @@ Intersection MotorwayHandler::fromMotorway(const EdgeID via_eid, Intersection in
             {
                 BOOST_ASSERT(!isRampClass(intersection[1].eid, node_based_graph));
 
-                intersection[1].instruction =
-                    getInstructionForObvious(intersection.size(),
-                                             via_eid,
-                                             isThroughStreet(1, intersection),
-                                             intersection[1]);
+                intersection[1].instruction = getInstructionForObvious(
+                    intersection.size(),
+                    via_eid,
+                    ::osrm::extractor::guidance::isThroughStreet(1,
+                                                                 intersection,
+                                                                 node_based_graph,
+                                                                 node_data_container,
+                                                                 name_table,
+                                                                 street_name_suffix_table),
+                    intersection[1]);
             }
             else
             {
@@ -254,7 +259,15 @@ Intersection MotorwayHandler::fromMotorway(const EdgeID via_eid, Intersection in
                     if (road.angle == continue_angle)
                     {
                         road.instruction = getInstructionForObvious(
-                            intersection.size(), via_eid, isThroughStreet(1, intersection), road);
+                            intersection.size(),
+                            via_eid,
+                            ::osrm::extractor::guidance::isThroughStreet(1,
+                                                                         intersection,
+                                                                         node_based_graph,
+                                                                         node_data_container,
+                                                                         name_table,
+                                                                         street_name_suffix_table),
+                            road);
                     }
                     else if (road.angle < continue_angle)
                     {
@@ -354,7 +367,15 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
         BOOST_ASSERT(isMotorwayClass(intersection[1].eid, node_based_graph));
 
         intersection[1].instruction = getInstructionForObvious(
-            intersection.size(), via_eid, isThroughStreet(1, intersection), intersection[1]);
+            intersection.size(),
+            via_eid,
+            ::osrm::extractor::guidance::isThroughStreet(1,
+                                                         intersection,
+                                                         node_based_graph,
+                                                         node_data_container,
+                                                         name_table,
+                                                         street_name_suffix_table),
+            intersection[1]);
     }
     else if (intersection.size() == 3)
     {
@@ -401,11 +422,16 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
                 }
                 else // passing by the end of a motorway
                 {
-                    intersection[1].instruction =
-                        getInstructionForObvious(intersection.size(),
-                                                 via_eid,
-                                                 isThroughStreet(1, intersection),
-                                                 intersection[1]);
+                    intersection[1].instruction = getInstructionForObvious(
+                        intersection.size(),
+                        via_eid,
+                        ::osrm::extractor::guidance::isThroughStreet(1,
+                                                                     intersection,
+                                                                     node_based_graph,
+                                                                     node_data_container,
+                                                                     name_table,
+                                                                     street_name_suffix_table),
+                        intersection[1]);
                 }
             }
             else
@@ -426,11 +452,16 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
                 }
                 else // passing the end of a highway
                 {
-                    intersection[2].instruction =
-                        getInstructionForObvious(intersection.size(),
-                                                 via_eid,
-                                                 isThroughStreet(2, intersection),
-                                                 intersection[2]);
+                    intersection[2].instruction = getInstructionForObvious(
+                        intersection.size(),
+                        via_eid,
+                        ::osrm::extractor::guidance::isThroughStreet(2,
+                                                                     intersection,
+                                                                     node_based_graph,
+                                                                     node_data_container,
+                                                                     name_table,
+                                                                     street_name_suffix_table),
+                        intersection[2]);
                 }
             }
         }
