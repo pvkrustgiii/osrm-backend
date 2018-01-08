@@ -239,7 +239,7 @@ Intersection MotorwayHandler::fromMotorway(const EdgeID via_eid, Intersection in
                 intersection[1].instruction = getInstructionForObvious(
                     intersection.size(),
                     via_eid,
-                    ::osrm::extractor::guidance::isThroughStreet(1,
+                    ::osrm::extractor::guidance::isThroughStreet<Intersection>(1,
                                                                  intersection,
                                                                  node_based_graph,
                                                                  node_data_container,
@@ -261,7 +261,7 @@ Intersection MotorwayHandler::fromMotorway(const EdgeID via_eid, Intersection in
                         road.instruction = getInstructionForObvious(
                             intersection.size(),
                             via_eid,
-                            ::osrm::extractor::guidance::isThroughStreet(1,
+                            ::osrm::extractor::guidance::isThroughStreet<Intersection>(1,
                                                                          intersection,
                                                                          node_based_graph,
                                                                          node_data_container,
@@ -369,7 +369,7 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
         intersection[1].instruction = getInstructionForObvious(
             intersection.size(),
             via_eid,
-            ::osrm::extractor::guidance::isThroughStreet(1,
+            ::osrm::extractor::guidance::isThroughStreet<Intersection>(1,
                                                          intersection,
                                                          node_based_graph,
                                                          node_data_container,
@@ -425,7 +425,7 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
                     intersection[1].instruction = getInstructionForObvious(
                         intersection.size(),
                         via_eid,
-                        ::osrm::extractor::guidance::isThroughStreet(1,
+                        ::osrm::extractor::guidance::isThroughStreet<Intersection>(1,
                                                                      intersection,
                                                                      node_based_graph,
                                                                      node_data_container,
@@ -455,7 +455,7 @@ Intersection MotorwayHandler::fromRamp(const EdgeID via_eid, Intersection inters
                     intersection[2].instruction = getInstructionForObvious(
                         intersection.size(),
                         via_eid,
-                        ::osrm::extractor::guidance::isThroughStreet(2,
+                        ::osrm::extractor::guidance::isThroughStreet<Intersection>(2,
                                                                      intersection,
                                                                      node_based_graph,
                                                                      node_data_container,

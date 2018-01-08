@@ -290,7 +290,7 @@ Intersection TurnHandler::handleThreeWayTurn(const EdgeID via_edge, Intersection
             intersection[1].instruction = getInstructionForObvious(
                 3,
                 via_edge,
-                ::osrm::extractor::guidance::isThroughStreet(1,
+                ::osrm::extractor::guidance::isThroughStreet<Intersection>(1,
                                                              intersection,
                                                              node_based_graph,
                                                              node_data_container,
@@ -311,7 +311,7 @@ Intersection TurnHandler::handleThreeWayTurn(const EdgeID via_edge, Intersection
             intersection[2].instruction = getInstructionForObvious(
                 3,
                 via_edge,
-                ::osrm::extractor::guidance::isThroughStreet(2,
+                ::osrm::extractor::guidance::isThroughStreet<Intersection>(2,
                                                              intersection,
                                                              node_based_graph,
                                                              node_data_container,
@@ -352,7 +352,7 @@ Intersection TurnHandler::handleComplexTurn(const EdgeID via_edge, Intersection 
         intersection[obvious_index].instruction = getInstructionForObvious(
             intersection.size(),
             via_edge,
-            ::osrm::extractor::guidance::isThroughStreet(obvious_index,
+            ::osrm::extractor::guidance::isThroughStreet<Intersection>(obvious_index,
                                                          intersection,
                                                          node_based_graph,
                                                          node_data_container,

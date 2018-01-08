@@ -345,13 +345,13 @@ operator()(const NodeID /*nid*/, const EdgeID source_edge_id, Intersection inter
         }
 
         // If the sliproad candidate is a through street, we cannot handle it as a sliproad.
-        // if (::osrm::extractor::guidance::isThroughStreet(sliproad_edge,
-        //                                                  target_intersection,
-        //                                                  node_based_graph,
-        //                                                  node_data_container,
-        //                                                  name_table,
-        //                                                  street_name_suffix_table))
-        if (SliproadHandler::isThroughStreet(sliproad_edge, target_intersection))
+        if (::osrm::extractor::guidance::isThroughStreet<IntersectionView>(sliproad_edge,
+                                                         target_intersection,
+                                                         node_based_graph,
+                                                         node_data_container,
+                                                         name_table,
+                                                         street_name_suffix_table))
+        // if (SliproadHandler::isThroughStreet(sliproad_edge, target_intersection))
         {
             continue;
         }

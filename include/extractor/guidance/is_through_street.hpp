@@ -25,45 +25,49 @@ namespace extractor
 namespace guidance
 {
 
-// template <typename restriction_type> auto asDuplicatedNode(const restriction_type &restriction)
-// {
-//     auto &way = restriction.AsWayRestriction();
-//     // group restrictions by the via-way. On same via-ways group by from
-//     return std::tie(way.in_restriction.via, way.out_restriction.via, way.in_restriction.from);
-// }
+// template <typename AlgorithmT> const char *name();
+// template <> inline const char *name<ch::Algorithm>() { return "CH"; }
+// template <> inline const char *name<mld::Algorithm>() { return "MLD"; }
 
-// inline bool isThroughStreet(const EdgeID from,
-//                             const IntersectionView &intersection,
-//                             const util::NodeBasedDynamicGraph &node_based_graph,
-//                             const EdgeBasedNodeDataContainer &node_data_container,
-//                             const util::NameTable &name_table,
-//                             const SuffixTable &street_name_suffix_table)
-// {
-//     BOOST_ASSERT(from != SPECIAL_EDGEID);
-//     BOOST_ASSERT(!intersection.empty());
+template <typename IntersectionT> inline bool isThroughStreet(const std::size_t index,
+                            const IntersectionT &intersection,
+                            const util::NodeBasedDynamicGraph &node_based_graph,
+                            const EdgeBasedNodeDataContainer &node_data_container,
+                            const util::NameTable &name_table,
+                            const SuffixTable &street_name_suffix_table);
 
-//     const auto from_annotation_id = node_based_graph.GetEdgeData(from).annotation_data;
-//     const auto &edge_name_id = node_data_container.GetAnnotation(from_annotation_id).name_id;
+template <> inline bool isThroughStreet<IntersectionView>(const EdgeID from,
+                            const IntersectionView &intersection,
+                            const util::NodeBasedDynamicGraph &node_based_graph,
+                            const EdgeBasedNodeDataContainer &node_data_container,
+                            const util::NameTable &name_table,
+                            const SuffixTable &street_name_suffix_table)
+{
+    BOOST_ASSERT(from != SPECIAL_EDGEID);
+    BOOST_ASSERT(!intersection.empty());
 
-//     auto first = begin(intersection) + 1; // Skip UTurn road
-//     auto last = end(intersection);
+    const auto from_annotation_id = node_based_graph.GetEdgeData(from).annotation_data;
+    const auto &edge_name_id = node_data_container.GetAnnotation(from_annotation_id).name_id;
 
-//     auto same_name = [&](const auto &road) {
-//         const auto annotation_id = node_based_graph.GetEdgeData(road.eid).annotation_data;
-//         const auto &road_name_id = node_data_container.GetAnnotation(annotation_id).name_id;
+    auto first = begin(intersection) + 1; // Skip UTurn road
+    auto last = end(intersection);
 
-//         return edge_name_id != EMPTY_NAMEID && //
-//                road_name_id != EMPTY_NAMEID && //
-//                !util::guidance::requiresNameAnnounced(edge_name_id,
-//                                                       road_name_id,
-//                                                       name_table,
-//                                                       street_name_suffix_table); //
-//     };
+    auto same_name = [&](const auto &road) {
+        const auto annotation_id = node_based_graph.GetEdgeData(road.eid).annotation_data;
+        const auto &road_name_id = node_data_container.GetAnnotation(annotation_id).name_id;
 
-//     return std::find_if(first, last, same_name) != last;
-// }
+        return edge_name_id != EMPTY_NAMEID && //
+               road_name_id != EMPTY_NAMEID && //
+               !util::guidance::requiresNameAnnounced(edge_name_id,
+                                                      road_name_id,
+                                                      name_table,
+                                                      street_name_suffix_table); //
+    };
 
-inline bool isThroughStreet(const std::size_t index,
+    return std::find_if(first, last, same_name) != last;
+}
+
+template <> inline bool isThroughStreet<Intersection>(const std::size_t index,
                             const Intersection &intersection,
                             const util::NodeBasedDynamicGraph &node_based_graph,
                             const EdgeBasedNodeDataContainer &node_data_container,
