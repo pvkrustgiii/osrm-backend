@@ -94,6 +94,7 @@ function setup()
     },
 
     service_tag_forbidden = Set {
+      'private',
       'emergency_access'
     },
 
